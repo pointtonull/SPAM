@@ -50,10 +50,10 @@ def enviar(destinos, titulo, cuerpo, server=None):
         msg["From"] = user
         msg["Subject"] = Header(titulo, coding)
         msg["To"] = destino
-        debug("   %40s > %s" % (user, destino))
         try:
             server.sendmail(user, destino, msg.as_string())
             write(destino, "omitir.txt")
+            debug("   %40s > %s" % (user, destino))
         except smtplib.SMTPDataError, e:
             debug("Calmandome un poco... %s" % e)
             raise
@@ -107,12 +107,13 @@ if __name__ == "__main__":
 
     dirs = sorted(dirs - omitir)
 
-    debug("Enviando a %d destinatarios.\n" % len(dirs))
+    debug("Enviando a %d destinatarios. Usando %d cuentas.\n" %
+        (len(dirs), len(get_accounts())))
 
     partsize = 10
-    threads = 40
+    threads = 20
     slots = [None] * threads
-    
+
     for part in partition(dirs, partsize):
         passed = False
         while not passed:
@@ -122,5 +123,9 @@ if __name__ == "__main__":
                     passed = True
                     break
             time.sleep(1)
+
+    for slot in slots:
+        if slot is not None:
+            slot.get_result()
 
     debug("EOF!!")
