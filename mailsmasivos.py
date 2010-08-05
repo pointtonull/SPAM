@@ -57,6 +57,8 @@ def enviar(destinos, titulo, cuerpo, server=None):
         except smtplib.SMTPDataError, e:
             debug("Calmandome un poco... %s" % e)
             raise
+        except smtplib.SMTPServerDisconnected, e:
+            debug("¡¡ %s nos patea !! (error recuperado)" % smtp)
         except socket.sslerror:
             pass
 
