@@ -66,15 +66,25 @@ def enviar(destinos, titulo, cuerpo, server=None):
 
 
 def get_server(url, user, password):
-    server = smtplib.SMTP()
-    server.connect(url)
+    server = smtplib.SMTP(url, 587)
     server.ehlo()
-    server.starttls()
+
+    if url not in ("smtp.mail.yahoo.com",):
+        try:
+            server.starttls()
+        except smtplib.SMTPException, error:
+            debug("SMTPException %s: %s" %(error, url))
 
     try:
         server.login(user, password)
     except smtplib.SMTPAuthenticationError or socket.sslerror:
         write("%s;%s;%s" % (url, user, password), "noaccounts.txt")
+        return
+    except smtplib.SMTPException, error:
+        debug("SMTPException %s: %s" % (error, url))
+        return
+    except smtplib.SMTPServerDisconnected, error:
+        debug("¿Timeout? %s: %s" % (error, url))
         return
     except socket.sslerror:
         return
