@@ -107,37 +107,45 @@ def partition(iter, partsize):
         for npart in xrange(len(iter) / partsize + 1))
 
 
+def get_dirs():
+    dirs = set((s.lower().strip()
+        for s in open("direcciones.txt").readlines()))
+    omitir = set((s.strip()
+        for s in open("omitir.txt").readlines()))
+
+    return sorted(dirs - omitir)
+
+
 if __name__ == "__main__":
 
     mensaje = open("mensaje.txt").readlines()
     titulo = unicode(mensaje[0].strip(), "UTF8")
     cuerpo = unicode("".join(mensaje[1:]).strip(), "UTF8")
 
-    dirs = set((s.lower().strip()
-        for s in open("direcciones.txt").readlines()))
-    omitir = set((s.strip() for s in open("omitir.txt").readlines()))
+    dirs = get_dirs()
+    while dirs:
 
-    dirs = sorted(dirs - omitir)
+        debug("Enviando a %d destinatarios. Usando %d cuentas.\n" %
+            (len(dirs), len(get_accounts())))
 
-    debug("Enviando a %d destinatarios. Usando %d cuentas.\n" %
-        (len(dirs), len(get_accounts())))
+        partsize = 10
+        threads = 20
+        slots = [None] * threads
 
-    partsize = 10
-    threads = 20
-    slots = [None] * threads
+        for part in partition(dirs, partsize):
+            passed = False
+            while not passed:
+                for pos in xrange(len(slots)):
+                    if slots[pos] is None or not slots[pos].is_alive():
+                        slots[pos] = enviar(part, titulo, cuerpo)
+                        passed = True
+                        break
+                time.sleep(1)
 
-    for part in partition(dirs, partsize):
-        passed = False
-        while not passed:
-            for pos in xrange(len(slots)):
-                if slots[pos] is None or not slots[pos].is_alive():
-                    slots[pos] = enviar(part, titulo, cuerpo)
-                    passed = True
-                    break
-            time.sleep(1)
+        for slot in slots:
+            if slot is not None:
+                slot.get_result()
 
-    for slot in slots:
-        if slot is not None:
-            slot.get_result()
+        dirs = get_dirs()
 
     debug("EOF!!")
