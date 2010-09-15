@@ -3,4 +3,13 @@
     <note priority="veryhigh" time="1284576722">
         Implement unavailable server detection.
     </note>
+    <note priority="veryhigh" time="1284577653">
+        Add template processing
+        <note priority="medium" time="1284577693">
+            Define sintaxis
+        </note>
+        <note priority="medium" time="1284577712">
+            Implement
+        </note>
+    </note>
 </todo>
