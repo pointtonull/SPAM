@@ -3,14 +3,16 @@
 
 from debug import debug
 from decoradores import Verbose, Async
-from email.Header import Header
-from email.MIMEText import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from itertools import islice
 import random
+import re
 import smtplib
+import socket
 import sys
 import time
-import socket
-from itertools import islice
+
 
 VERBOSE = 2
 
@@ -19,14 +21,17 @@ Los archivos direcciones.txt y omitir.txt son listas de direcciones de mail
 separados por enter. Ambos deben existir.
 
 Los archivos accounts.txt y noaccounts.txt son listas de pares
-usuario;contraseña. Ambos deben existir.
+servidor;usuario;contraseña. Ambos deben existir.
 
-El fichero mensaje.txt es el mensaje que se enviará. La primera linea de este
-archivo será usada como titulo del mensaje.
+El fichero mensaje.txt es el mensaje que se enviará.
 
-Se debe modificar la dirección de remitente en la linea 60.
+Si existe el fichero mensaje.html se enviará un body multipart html con texto
+plano alternativo.
+
+El titulo del mensaje es el titulo más relevante encontrado en mensaje.html.
 """
 
+#FIXME: Salir cuando no queden cuentas disponibles
 
 def write(text, destination):
     f = open(destination, "a")
@@ -36,9 +41,7 @@ def write(text, destination):
 
 @Async
 @Verbose(VERBOSE)
-def enviar(destinos, titulo, cuerpo, server=None):
-    coding = 'utf8'
-
+def enviar(destinos, server=None):
     if server is None:
         while not server:
             account = random.choice(get_accounts())
@@ -46,10 +49,9 @@ def enviar(destinos, titulo, cuerpo, server=None):
             server = get_server(smtp, user, password)
 
     for destino in destinos:
-        msg = MIMEText(cuerpo.encode(coding), 'plain', coding)
-        msg["From"] = user
-        msg["Subject"] = Header(titulo, coding)
-        msg["To"] = destino
+
+        msg = get_msg(user, destino)
+
         try:
             server.sendmail(user, destino, msg.as_string())
             write(destino, "omitir.txt")
@@ -116,12 +118,43 @@ def get_dirs():
     return sorted(dirs - omitir)
 
 
+def get_title(text, html=None):
+    title = ""
+    if html:
+        regexs = [
+            r'<title>(.*?)</title>',
+            r'<h\d>(.*?)</h\d>',
+        ]
+        while not title and regexs:
+            match = re.search(regexs.pop(0), html)
+            if match:
+                title = match.group(1)
+    return title
+
+
+def get_msg(from_addrs, to_addrs):
+    text = open("mensaje.txt").read()
+    html = open("mensaje.html").read()
+
+    subject = get_title(text, html)
+    charset = "iso-8859-15"
+
+    msg = MIMEMultipart('alternative')
+
+    msg['From'] = from_addrs
+    msg['To'] = to_addrs
+    msg['Subject'] = subject
+
+    part1 = MIMEText(text, 'plain')
+    part2 = MIMEText(html, 'html')
+
+    msg.attach(part1)
+    msg.attach(part2)
+
+    return msg
+
+
 if __name__ == "__main__":
-
-    mensaje = open("mensaje.txt").readlines()
-    titulo = unicode(mensaje[0].strip(), "UTF8")
-    cuerpo = unicode("".join(mensaje[1:]).strip(), "UTF8")
-
     dirs = get_dirs()
     while dirs:
 
@@ -137,7 +170,7 @@ if __name__ == "__main__":
             while not passed:
                 for pos in xrange(len(slots)):
                     if slots[pos] is None or not slots[pos].is_alive():
-                        slots[pos] = enviar(part, titulo, cuerpo)
+                        slots[pos] = enviar(part)
                         passed = True
                         break
                 time.sleep(1)
