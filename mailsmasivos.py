@@ -131,17 +131,26 @@ def get_title(text, html=None):
                 title = match.group(1)
     return title
 
+def softread(filename):
+    try:
+        text = open(filename).read()
+    except IOError:
+        text = ""
+    return text
 
 def get_msg(from_addrs, to_addrs):
-    text = open("mensaje.txt").read()
-    html = open("mensaje.html").read()
+    text = softread("mensaje.txt")
+    html = softread("mensaje.html")
+    info = softread("info.txt")
+    match = re.search(r"fromstr\s*=\s*(.*?)\s*$", info)
+    from_str = match.group(1) if match else ""
 
     subject = get_title(text, html)
     charset = "iso-8859-15"
 
     msg = MIMEMultipart('alternative')
 
-    msg['From'] = from_addrs
+    msg['From'] = "%s <%s>" % (from_str, from_addrs)
     msg['To'] = to_addrs
     msg['Subject'] = subject
 
