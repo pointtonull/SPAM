@@ -141,6 +141,8 @@ def softread(filename):
 def get_msg(from_addrs, to_addrs):
     text = softread("mensaje.txt")
     html = softread("mensaje.html")
+    match = re.search(r"<body.*?>.*?</body.*?>", html)
+    html = match.group(1) if match else ""
     info = softread("info.txt")
     match = re.search(r"fromstr\s*=\s*(.*?)\s*$", info)
     from_str = match.group(1) if match else ""
